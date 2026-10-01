@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {freshState} from '../progress.js';import {validateState,loadState,saveState,KEY} from '../storage.js';
+const memory=()=>{const m=new Map();return {getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};};
+test('valid state roundtrips and stale tabs cannot overwrite progress',()=>{const store=memory();const a=freshState();saveState(a,0,store);const b=loadState(store).state;saveState(a,1,store);assert.throws(()=>saveState(b,1,store),/another tab/);assert.deepEqual(validateState(a),a);});
+test('malformed progress is preserved rather than silently reset',()=>{const store=memory();store.setItem(KEY,'broken');const result=loadState(store);assert.ok(result.error);assert.equal(store.getItem(KEY),'broken');assert.throws(()=>validateState(JSON.parse('{"__proto__":{}}')));const s=freshState();s.days.bad={seconds:Infinity};assert.throws(()=>validateState(s));});
+test('invalid evidence, inconsistent weeks and fake paid flags are rejected',()=>{const s=freshState();s.days['2026-10-01']={seconds:900,events:[{correct:'yes'}],flags:[],approvedAt:0};assert.throws(()=>validateState(s));const a=freshState();a.weeks['2026-09-28']={rules:{},paidAt:123};assert.throws(()=>validateState(a));});
