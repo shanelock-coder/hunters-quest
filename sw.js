@@ -1,4 +1,4 @@
-const VERSION='hunters-quest-v1.0.1';
+const VERSION='hunters-quest-v1.0.2';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./views.js','./visuals.js','./games.js','./content.js','./scripts.js','./learning.js','./maths.js','./calendar.js','./progress.js','./storage.js','./parent.js','./activity.js','./tracing.js','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const urls=ASSETS.map(x=>new URL(x,self.registration.scope).href);
 self.addEventListener('install',e=>e.waitUntil((async()=>{const cache=await caches.open(VERSION);await cache.addAll(urls.map(u=>new Request(u,{cache:'reload'})));})()));

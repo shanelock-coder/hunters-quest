@@ -13,7 +13,7 @@ export function createSession(options={},state){
  }else if(mode==='letters'){
   s.items=shuffle(alphabet).slice(0,10).map((a,i)=>{const dir=i%2===0,target=dir?a.latin:a.cyrillic;return {id:a.latin,card:a,subject:'alphabet',script:'cyrillic',direction:'script',mode,prompt:dir?a.cyrillic:a.latin,target,options:shuffle([target,...shuffle(alphabet.filter(b=>b!==a)).slice(0,3).map(b=>dir?b.latin:b.cyrillic)]),retried:false};});
  }else{
-  const chosen=selectItems(pool,state.mastery,{count:mode==='memory'?5:mode==='flash'?8:10,script:script==='mixed'?'latin':script,direction:mode==='memory'?'match':direction,recent:state.recent});
+  const chosen=selectItems(pool,state.mastery,{count:mode==='memory'?5:mode==='flash'?8:10,script:script==='mixed'?'latin':script,direction:mode==='memory'?'match':direction,assessment:['type','build'].includes(mode)?'recall':'recognition',recent:state.recent});
   s.items=chosen.map((c,i)=>question(c,mode,script==='mixed'?(i%3===2?'cyrillic':'latin'):script,direction,pool));
   if(mode==='memory'){s.tiles=shuffle(s.items.flatMap(q=>[{key:q.id+'-en',id:q.id,side:'en',text:q.card.en},{key:q.id+'-hr',id:q.id,side:'hr',text:displayText(q.card,q.script)}]));}
  }

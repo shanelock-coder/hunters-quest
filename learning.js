@@ -2,14 +2,14 @@ import {displayText,toCyrillic} from './scripts.js';
 export const shuffle=(a,rng=Math.random)=>{const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
 export function normalize(text,fold=false){let s=String(text).normalize('NFC').toLowerCase().replace(/[.,!?;:…“”"'’]/g,'').replace(/\s+/g,' ').trim();if(fold)s=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');return s;}
 export function checkTranslation(card,input,direction,script){const model=direction==='hr-en'?card.en:displayText(card,script);if(!String(input).trim())return {correct:false,empty:true,model};if(direction==='en-hr'&&script==='cyrillic'&&/[a-zčćđšž]/i.test(input)&&!/[а-яђјљњћџ]/i.test(input)&&/[а-яђјљњћџ]/i.test(model))return {correct:false,script:true,model};const alternatives=direction==='hr-en'?[card.en,...(card.enAlternatives||[])]:[card.hr,...(card.alternatives||[])].map(t=>script==='cyrillic'?toCyrillic(t):t);const exact=alternatives.some(t=>normalize(t)===normalize(input));return {correct:exact||alternatives.some(t=>normalize(t,true)===normalize(input,true)),accent:!exact,model};}
-export function selectItems(cards,records,{count=10,script='latin',direction='en-hr',now=Date.now(),recent=[],rng=Math.random}={}){
- const record=c=>records[`${script}:${direction}:${c.id}`],pool=shuffle(cards,rng),out=[],used=new Set();const add=(list,n)=>{let added=0;for(const c of list){if(out.length>=count||added>=n)break;if(!used.has(c.id)){out.push(c);used.add(c.id);added++;}}};
+export function selectItems(cards,records,{count=10,script='latin',direction='en-hr',assessment='recognition',now=Date.now(),recent=[],rng=Math.random}={}){
+ const record=c=>records[`${script}:${direction}:${c.id}${assessment==='recall'?':recall':''}`],pool=shuffle(cards,rng),out=[],used=new Set();const add=(list,n)=>{let added=0;for(const c of list){if(out.length>=count||added>=n)break;if(!used.has(c.id)){out.push(c);used.add(c.id);added++;}}};
  add(pool.filter(c=>record(c)?.lapses>0&&record(c)?.streak<2),Math.max(1,Math.floor(count*.3)));
  add(pool.filter(c=>record(c)&&record(c).due<=now),Math.floor(count*.2));
  add(pool.filter(c=>!record(c)&&!recent.includes(c.id)),count);add(pool.filter(c=>!recent.includes(c.id)).sort((a,b)=>(record(a)?.last||0)-(record(b)?.last||0)),count);add(pool,count);return out;
 }
-export function updateMastery(records,{id,script,direction,correct,now=Date.now(),hinted=false}){
- const key=`${script}:${direction}:${id}`,m=records[key]||{seen:0,correct:0,lapses:0,streak:0,last:0,due:0,level:0};
+export function updateMastery(records,{id,script,direction,correct,now=Date.now(),hinted=false,assessment='recognition'}){
+ const key=`${script}:${direction}:${id}${assessment==='recall'?':recall':''}`,m=records[key]||{seen:0,correct:0,lapses:0,streak:0,last:0,due:0,level:0};
  m.seen++;if(correct){m.correct++;m.streak++;if(now>=m.due&&!hinted)m.level=Math.min(6,m.level+1);m.due=now+(hinted?3600000:[0,86400000,3*86400000,7*86400000,14*86400000,30*86400000,60*86400000][m.level]||86400000);}else{m.lapses++;m.streak=0;m.due=now+600000;}m.last=now;records[key]=m;return m;
 }
 export function makeOptions(card,pool,direction,script){const value=c=>direction==='hr-en'?c.en:displayText(c,script),target=value(card),out=[target],equivalent=other=>normalize(other.en)===normalize(card.en)||[card.hr,...card.alternatives||[]].some(t=>normalize(t)===normalize(other.hr));for(const c of shuffle(pool)){if(c.id===card.id||equivalent(c))continue;const s=value(c);if(!out.some(t=>normalize(t)===normalize(s)))out.push(s);if(out.length===4)break;}return shuffle(out);}

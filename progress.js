@@ -14,25 +14,28 @@ export function recordEvidence(state,event){
   if(entry.events.some(x=>x.id===event.id))return false;
   entry.events.push({...event});return true;
 }
+export function recordAssistance(state,event){const {entry}=ensureDay(state,event.timestamp);entry.assistance??={};const key=`${event.subject}:${event.item}:${event.direction}`;entry.assistance[key]??=event.timestamp;}
 export function addActiveSeconds(state,timestamp,seconds){
   if(!Number.isFinite(seconds)||seconds<0||seconds>30)throw Error('Invalid active-time increment');
-  const {entry}=ensureDay(state,timestamp);entry.seconds=Math.min(86400,entry.seconds+seconds);
+  const backwards=timestamp<state.lastWall-120000;const {entry}=ensureDay(state,timestamp);if(backwards)return 0;entry.seconds=Math.min(86400,entry.seconds+seconds);return seconds;
 }
 export function dailyStatus(state,day){
   const d=state.days[day]||{seconds:0,events:[],approvedAt:0,flags:[],reviewedAt:0};
   const rules=state.weeks[weekKey(day)]?.rules||RULES;
-  const accepted=new Map(),games={},mathTopics=new Set();let enHr=0,hrEn=0,maths=0,indEn=0,indHr=0;
+  const accepted=new Map(),attempted=new Set(),games={},mathTopics=new Set();let enHr=0,hrEn=0,maths=0,indEn=0,indHr=0,firstCorrect=0;
   for(const e of d.events){
-    if(!e.correct||e.revealed||e.game==='trace')continue;
+
     const key=`${e.subject}:${e.item}:${e.direction}`;
+    if(!attempted.has(key)&&e.correct&&!e.revealed)firstCorrect++;const independent=!attempted.has(key)&&e.first&&e.hints===0&&!(d.assistance?.[key]<=e.timestamp);attempted.add(key);
+    if(!e.correct||e.revealed||e.game==='trace')continue;
     if(accepted.has(key))continue;accepted.set(key,e);games[e.game]=(games[e.game]||0)+1;
-    if(e.direction==='en-hr'){enHr++;if(e.first&&e.hints===0)indEn++;}
-    if(e.direction==='hr-en'){hrEn++;if(e.first&&e.hints===0)indHr++;}
+    if(e.direction==='en-hr'){enHr++;if(independent)indEn++;}
+    if(e.direction==='hr-en'){hrEn++;if(independent)indHr++;}
     if(e.subject==='maths'){maths++;mathTopics.add(e.topic);}
   }
   const gameCount=Object.values(games).filter(n=>n>=rules.perGame).length;
   const complete=d.seconds>=rules.seconds&&gameCount>=rules.games&&enHr>=rules.enHr&&hrEn>=rules.hrEn&&maths>=rules.maths&&indEn>=rules.independent&&indHr>=rules.independent&&mathTopics.size>=rules.mathTopics;
-  return {day,seconds:d.seconds,enHr,hrEn,maths,indEn,indHr,games,gameCount,mathTopics:mathTopics.size,total:accepted.size,attempts:d.events.length,correct:d.events.filter(e=>e.correct).length,hints:d.events.reduce((n,e)=>n+e.hints,0),cyrillic:d.events.filter(e=>e.script==='cyrillic').length,complete,approved:complete&&d.approvedAt>0,approvedAt:d.approvedAt,flags:d.flags,reviewedAt:d.reviewedAt,rules};
+  return {day,firstAttempts:attempted.size,firstCorrect,seconds:d.seconds,enHr,hrEn,maths,indEn,indHr,games,gameCount,mathTopics:mathTopics.size,total:accepted.size,attempts:d.events.length,correct:d.events.filter(e=>e.correct).length,hints:d.events.reduce((n,e)=>n+e.hints,0),cyrillic:d.events.filter(e=>e.script==='cyrillic').length,complete,approved:complete&&d.approvedAt>0,approvedAt:d.approvedAt,flags:d.flags,reviewedAt:d.reviewedAt,rules};
 }
 export function weeklyStatus(state,week){
   const days=weekDays(week).map(d=>dailyStatus(state,d)),rules=state.weeks[week]?.rules||RULES,approved=days.filter(d=>d.approved).length;

@@ -17,7 +17,7 @@ export function validateState(input){
   if(Object.keys(input.days).length>10000)fail();
   for(const [day,d] of Object.entries(input.days)){
     if(!validDay(day)||!obj(d)||!num(d.seconds,86400)||!num(d.approvedAt)||!num(d.reviewedAt)||!Array.isArray(d.events)||d.events.length>10000||!Array.isArray(d.flags)||d.flags.some(x=>!str(x)))fail();
-    if(!input.weeks[weekKey(day)])fail();const ids=new Set();
+    if(d.assistance!==undefined&&(!obj(d.assistance)||Object.entries(d.assistance).some(([k,v])=>!str(k)||!num(v))))fail();if(!input.weeks[weekKey(day)])fail();const ids=new Set();
     for(const e of d.events){if(!obj(e)||!str(e.id)||!e.id||ids.has(e.id)||!num(e.timestamp)||dayKey(e.timestamp,input.weeks[weekKey(day)].timezone)!==day||!str(e.item)||!e.item||!GAME_IDS.includes(e.game)||!['croatian','maths','alphabet'].includes(e.subject)||!['en-hr','hr-en','math','match','script'].includes(e.direction)||!['latin','cyrillic','none'].includes(e.script)||typeof e.correct!=='boolean'||typeof e.first!=='boolean'||typeof e.revealed!=='boolean'||!Number.isInteger(e.hints)||!num(e.hints,3))fail();if(e.subject==='maths'&&(e.direction!=='math'||!str(e.topic)||!e.topic))fail();if(e.subject==='croatian'&&!['en-hr','hr-en','match'].includes(e.direction))fail();if(e.subject==='alphabet'&&e.direction!=='script')fail();ids.add(e.id);}
   }
   for(const [w,d] of Object.entries(input.weeks)){
@@ -29,8 +29,10 @@ export function validateState(input){
   for(const [k,m] of Object.entries(input.letters)){if(!str(k)||!obj(m)||!num(m.attempts)||!num(m.passed)||m.passed>m.attempts)fail();}
   return structuredClone(input);
 }
-export function loadState(store=localStorage){try{const raw=store.getItem(KEY);return {state:raw?validateState(JSON.parse(raw)):freshState(),error:null};}catch(e){return {state:freshState(),error:'Saved progress could not be read. It has been preserved. Use the parent recovery screen to export it or restore a backup.'};}}
+export function loadState(store){try{store??=localStorage;const raw=store.getItem(KEY);return {state:raw?validateState(JSON.parse(raw)):freshState(),error:null};}catch(e){return {state:freshState(),error:'Browser storage is unavailable or saved progress could not be read. Existing data has not been changed. Allow site storage or use the parent recovery screen.'};}}
 export function saveState(state,expectedRevision,store=localStorage){
   const raw=store.getItem(KEY),old=raw?JSON.parse(raw):null;if((old?.revision||0)!==expectedRevision)throw Error('Progress changed in another tab. Reload this tab before continuing.');
   const next={...state,revision:expectedRevision+1,updated:Date.now()};store.setItem(KEY,JSON.stringify(next));state.revision=next.revision;state.updated=next.updated;return state.revision;
 }
+
+export function mutateSaved(state,mutate,store){const next=structuredClone(state);mutate(next);saveState(next,state.revision,store);return next;}
