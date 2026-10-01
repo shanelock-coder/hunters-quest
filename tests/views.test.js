@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {play} from '../views.js';import {freshState} from '../progress.js';import {createSession} from '../games.js';
+test('place-value answer scaffold appears only after a hint or answer',()=>{const state=freshState(),session=createSession({mode:'maths',topic:'numbers'},state),ctx={state,session,today:'2026-10-01'};assert.ok(!play(ctx).includes('place-blocks'));session.hints=1;assert.ok(play(ctx).includes('place-blocks'));});
